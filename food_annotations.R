@@ -84,15 +84,12 @@ fixFractions_small <- function(s)
 }
 
 #-------------END utility functions-------------#
-
-
-# "FOODON"  "OF" i so "SNOMEDCT" i semantic_type T168, fix SNOMEDCT!!
     
  annotate_text<-function(queryText, yourAPIKey, onto=NULL){   
    
    if(is.null(onto))
-   {
-     print("Please choose one of the followinG:\n \"FOODON\",\n\"OF\",\n\"SNOMEDCT\".")
+ {
+     print("Please choose one of the followinG:\n \"FOODON\",\n\"OF\",\n\"SNOMEDCT\",\n\"MESH\",\n\"OCHV\",\n\"RCD\".")
      return(NULL)
    }
    
@@ -110,7 +107,7 @@ fixFractions_small <- function(s)
                     "expand_mappings"="false")
      
    }
-   else if(onto %in% c("SNOMEDCT"))
+   else if(onto %in% c('CRISP', 'LOINC', 'MEDLINEPLUS', 'MESH', 'NDDF', 'NDFRT', 'PDQ', 'RCD', 'RXNORM', 'SNMI', 'SNOMEDCT', 'VANDF'))
    {
      res <- postForm('http://data.bioontology.org/annotator',
                      "text"=queryText, 
@@ -123,6 +120,7 @@ fixFractions_small <- function(s)
                      "expand_mappings"="false")
      
    }
+
   return(res)
 }
 
@@ -182,8 +180,27 @@ check_ontology <- function(queryText = "I like banana bread.", api_key ="6c62f9c
   return(concepts)
 }
 
-annotate_recipes <- function(num=1000000, onto = NULL)
+annotate_recipes <- function(num=1000000, ontos = NULL, curated = NULL)
 {
+  csv_root <- NULL
+  
+  if(is.null(curated))
+  {
+    csv_root <- "csv_test"
+    xls_root <- "xls_test"
+    
+  }
+  else if(curated)
+  {
+    csv_root <- "csv"
+    xls_root <- "xls"
+  }
+  else if(!curated)
+  {
+    csv_root <- "csv_uncur"
+    xls_root <- "xls_uncur"
+    
+  }
   
   full_files = list.files("recipes/", full.names = TRUE)
   files = list.files("recipes/", full.names = FALSE)
@@ -192,45 +209,53 @@ annotate_recipes <- function(num=1000000, onto = NULL)
   
   for(f in full_files)
   {
-    if(ctr > num)
-      break;
+
     writeLines(files[ctr])
     s <<- readChar(f, file.info(f)$size)
+    
+    # RECIPE FILES ARE ALREADY PREPROCESSED!!
     #s <<- gsub("[\r\n\t\f\v ][\r\n\t\f\v ]+", " ", s)
     #s <<- gsub(x = s, pattern = "\"", replacement = "")
     #s <<- gsub(x = s, pattern = "°", replacement = " degrees ")
     #s <<- iconv(s, to='ASCII//TRANSLIT')
     #s <<- fixFractions_small(fixFractions(s))
     
-    concepts <- check_ontology(queryText = s, onto = onto)
-    
-    if(!is.null(concepts))
+    for(onto in ontos)
     {
-      #print(concepts)
-      file_name_xls <- paste(substring(files[ctr], 1, nchar(files[ctr])-4), '_', onto, '.xls', sep = '')
-      file_path_xls <- paste("./xls_uncur/", onto, '/', file_name_xls,sep = '')
-      
-      file_name_csv <- paste(substring(files[ctr], 1, nchar(files[ctr])-4), '_', onto, '.csv', sep = '')
-      file_path_csv <- paste("./csv_uncur/", onto, '/', file_name_csv,sep = '')
     
-      #write to separate xlsx file here  
-      write.xlsx(concepts, file_path_xls, sheetName = "Matched Concepts", col.names= TRUE, row.names = TRUE, append=FALSE)
-      write.csv(concepts, file = file_path_csv, col.names = TRUE)
-      writeLines(paste("Written to file", file_name_xls, "\n", sep=' '))
+      concepts <- check_ontology(queryText = s, onto = onto)
+      
+      if(!is.null(concepts))
+      {
+        #print(concepts)
+        file_name_xls <- paste(substring(files[ctr], 1, nchar(files[ctr])-4), '_', onto, '.xls', sep = '')
+        file_path_xls <- paste("./NCBO_annotations/", xls_root, "/",onto, '/', file_name_xls,sep = '')
+        
+        file_name_csv <- paste(substring(files[ctr], 1, nchar(files[ctr])-4), '_', onto, '.csv', sep = '')
+        file_path_csv <- paste("./NCBO_annotations/", csv_root, "/", onto, '/', file_name_csv,sep = '')
+      
+        #write to separate xlsx file here  
+        write.xlsx(concepts, file_path_xls, sheetName = "Matched Concepts", col.names= TRUE, row.names = TRUE, append=FALSE)
+        write.csv(concepts, file = file_path_csv, col.names = TRUE)
+        writeLines(paste("Written to file", file_name_xls, "\n", sep=' '))
+      }
     }
-    invisible(do.call(file.remove, as.list(f)))  
     ctr = ctr + 1
+    invisible(do.call(file.remove, as.list(f)))  
   }
-  writeLines("Done!")
   
 }
 
 bla <- function()
 {
+  # csv_root can be 
+  # annotate_recipes(onto = c("SNOMEDCT", "OF", "FOODON", "MESH", "RCD", "NDDF", "SNMI"))#, curated = FALSE)
+  # annotate_recipes(onto = "CRISP")
+  #annotate_recipes(onto = "STY")
+  # ('AI-RHEUM', 'ATC', 'COSTART', 'CRISP', 'HCPCS', 'HL7', 'ICD10', 'ICD10CM', 'ICD10PCS', 'ICPC2P', 'IOBC', 'LOINC', 'MDDB', 'MEDDRA', 'MEDLINEPLUS', 'MESH', 'MSTDE', 'NCBITAXON', 'NDDF', 'NDFRT', 'OCHV', 'OF', 'OMIM', 'PDQ', 'RCD', 'RXNORM', 'SNMI', 'SNOMEDCT', 'STY', 'VANDF', 'WHO-ART')
+#  annotate_recipes(onto = c('AI-RHEUM', 'ATC', 'COSTART', 'CRISP', 'HCPCS', 'HL7', 'ICD10', 'ICD10CM', 'ICPC2P', 'LOINC', 'MDDB', 'MEDDRA', 'MEDLINEPLUS', 'MSTDE', 'names.txt', 'NDFRT', 'OMIM', 'PDQ', 'RXNORM', 'VANDF', 'WHO-ART'))
+  annotate_recipes(onto="NDFRT", curated = TRUE)
   
-  annotate_recipes(onto = "SNOMEDCT")
-  annotate_recipes(onto = "OF")
-  annotate_recipes(onto = "FOODON")
   
 }
 #queryText <- "Baking banana bread is one of my favorites, and I love nothing more than enjoying a slice with a nice cup of coffee. This was the inspiration for my recipe, which features a coffee infused loaf and a rich caramel glaze."		
